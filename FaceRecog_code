@@ -1,0 +1,132 @@
+using UnityEngine;
+
+using Emgu.CV;
+using Emgu.CV.Structure;
+using Emgu.Util;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+///using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+//using System.Threading.Tasks;
+//using System.Windows.Forms;
+using UnityEngine;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Face;
+using System.Windows.Forms;
+//using Vuforia;
+
+public class faced : MonoBehaviour
+{
+    public Transform panel1;
+    public Transform panel2;
+    public Transform panel3;
+
+    private int frameWidth;
+    private int frameHeight;
+    private Capture cvCapture;
+    private CascadeClassifier _cascadeClassifier;
+    private Image<Bgr, byte> currentFrameBgr;
+
+    //MCvFont font = new MCvFont(Emgu.CV.CvEnum.FontFace.HersheyTriplex, 0.6d, 0.6d);
+    Image<Gray, byte> Trainedface = null;
+    Image<Gray, byte> grayFace = null;
+    Image<Gray, byte> result;
+
+    Mat m = new Mat();
+
+
+    List<Image<Gray, byte>> trainingImages = new List<Image<Gray, byte>>();
+    //Mat trainingfaces=CvInvoke.Imread("myimage.jpg", CvEnum.ImreadModes.AnyColor);
+
+    List<string> labels = new List<string>();
+    List<string> users = new List<string>();
+    int count, numlabels, t;
+    //string name;
+    string[] Labels;
+    public Material mt;
+    int[] names = new int[] { 1, 2, 3, 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36};
+    // EigenFaceRecognizer recognizer = new EigenFaceRecognizer(0, 0.2);
+    // FaceRecognizer recognizer = new FisherFaceRecognizer(0, 0.020);
+    
+    void Start()
+    {
+        
+        cvCapture = new Capture();
+        _cascadeClassifier = new CascadeClassifier(UnityEngine.Application.dataPath + "/haarcascade_frontalface_alt.xml");
+        frameWidth = (int)cvCapture.GetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameWidth);
+        frameHeight = (int)cvCapture.GetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameHeight);
+        cvCapture.Start();
+
+
+        StreamReader labelsinf = new StreamReader("Assets/Faces/Faces.txt");  // create folder "Faces" inside assets
+        string line;
+        while ((line = labelsinf.ReadLine()) != null)
+        {
+            Labels = line.Split(',');
+        }
+        numlabels = Convert.ToInt16(Labels[0]);
+        count = numlabels;
+        string facesload;
+        for (int j = 1; j < numlabels + 1; j++)
+        {
+            facesload = "faces" + j + ".bmp";
+            trainingImages.Add(new Image<Gray, byte>(UnityEngine.Application.dataPath + "/Faces/Face" + j + ".bmp")); // create folder "Faces" inside assets(ignore if created)
+            labels.Add(Labels[j]);
+        }
+    }
+
+    void Update()
+    {
+        faceDetector();
+    }
+
+
+    private void faceDetector()
+    {
+        currentFrameBgr = cvCapture.QueryFrame().ToImage<Bgr, byte>();
+        Texture2D tex = new Texture2D(640, 480);
+        if (currentFrameBgr != null)
+        {
+            Image<Gray, byte> grayFrame = currentFrameBgr.Convert<Gray, byte>();
+            var faces = _cascadeClassifier.DetectMultiScale(grayFrame, 1.1, 4, new System.Drawing.Size(frameWidth / 8, frameHeight / 8));
+            foreach (var face in faces)
+            {
+                result = currentFrameBgr.Copy().Convert<Gray, byte>().Resize(100, 100, Emgu.CV.CvEnum.Inter.Cubic);
+                currentFrameBgr = currentFrameBgr.Resize(100, 100, Emgu.CV.CvEnum.Inter.Cubic);
+                currentFrameBgr.Draw(face, new Bgr(0, 255, 0), 3);
+                EigenFaceRecognizer recognizer = new EigenFaceRecognizer(80, double.PositiveInfinity);
+                recognizer.Train<Gray, byte>(trainingImages.ToArray(), names);
+                EigenFaceRecognizer.PredictionResult result1 = recognizer.Predict(result);
+
+                if (result1.Label.ToString() == "1" || result1.Label.ToString() == "3" || result1.Label.ToString() == "4" || result1.Label.ToString() == "2"|| result1.Label.ToString() == "31"|| result1.Label.ToString() == "32"|| result1.Label.ToString() == "33"|| result1.Label.ToString() == "34"||result1.Label.ToString() == "35"|| result1.Label.ToString() == "36")
+                {
+                    panel1.gameObject.SetActive(true);
+                    panel2.gameObject.SetActive(false);
+                    panel3.gameObject.SetActive(false);
+                }
+                               
+            }
+            //Convert this image into Bitmap, the pixel values are copied over to the Bitmap
+            currentFrameBgr.ToBitmap();
+            MemoryStream memstream = new MemoryStream();
+            currentFrameBgr.Bitmap.Save(memstream, currentFrameBgr.Bitmap.RawFormat);
+            tex.LoadImage(memstream.ToArray());
+            mt.mainTexture = tex;
+
+
+
+        }
+    }
+
+    private void OnDestroy()
+    {
+        //release from memory
+        cvCapture.Dispose();
+        cvCapture.Stop();
+
+    }
+}
